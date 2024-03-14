@@ -1,0 +1,354 @@
+Program.Sub.ScreenSU.Start
+Gui.frmNotes..Create
+Gui.frmNotes..Caption("Quote Notes")
+Gui.frmNotes..Size(8175,6690)
+Gui.frmNotes..MinX(0)
+Gui.frmNotes..MinY(0)
+Gui.frmNotes..Position(0,0)
+Gui.frmNotes..BackColor(-2147483633)
+Gui.frmNotes..MousePointer(0)
+Gui.frmNotes..Event(UnLoad,frmNotes_UnLoad)
+Gui.frmNotes.txtRevRef.Create(TextBox,"",True,6090,300,0,30,300,True,0,"Arial",8,-2147483643,1)
+Gui.frmNotes.txtRevRef.MaxLength(50)
+Gui.frmNotes.txtRevRef.TabStop(True)
+Gui.frmNotes.txtRevRef.TabIndex(1)
+Gui.frmNotes.lblRevRef.Create(Label,"Rev / Ref:",True,1020,255,0,30,90,True,0,"Arial",8,-2147483633,0)
+Gui.frmNotes.GsGCNotes.Create(GsGridControl)
+Gui.frmNotes.GsGCNotes.Size(7980,2820)
+Gui.frmNotes.GsGCNotes.Position(30,3540)
+Gui.frmNotes.GsGCNotes.Event(RowCellClick,GsGCNotes_RowCellClick)
+Gui.frmNotes.GsGCNotes.Anchor(15)
+Gui.frmNotes.GsGCNotes.TabStop(True)
+Gui.frmNotes.GsGCNotes.TabIndex(5)
+Gui.frmNotes.lblNotes.Create(Label,"Notes:",True,2010,255,0,30,705,True,0,"Arial",8,-2147483633,0)
+Gui.frmNotes.txtNotes.Create(TextboxM)
+Gui.frmNotes.txtNotes.Size(7980,2220)
+Gui.frmNotes.txtNotes.Position(30,915)
+Gui.frmNotes.txtNotes.Anchor(13)
+Gui.frmNotes.txtNotes.TabStop(True)
+Gui.frmNotes.txtNotes.TabIndex(2)
+Gui.frmNotes.cmdSaveNote.Create(Button)
+Gui.frmNotes.cmdSaveNote.Size(990,375)
+Gui.frmNotes.cmdSaveNote.Position(7020,3150)
+Gui.frmNotes.cmdSaveNote.Caption("Save Note")
+Gui.frmNotes.cmdSaveNote.Event(Click,cmdSaveNote_Click)
+Gui.frmNotes.cmdSaveNote.Anchor(9)
+Gui.frmNotes.cmdSaveNote.TabStop(True)
+Gui.frmNotes.cmdSaveNote.TabIndex(4)
+Gui.frmNotes.cmdClear.Create(Button)
+Gui.frmNotes.cmdClear.Size(990,375)
+Gui.frmNotes.cmdClear.Position(6000,3150)
+Gui.frmNotes.cmdClear.Caption("Clear")
+Gui.frmNotes.cmdClear.Event(Click,cmdClear_Click)
+Gui.frmNotes.cmdClear.Anchor(9)
+Gui.frmNotes.cmdClear.TabStop(True)
+Gui.frmNotes.cmdClear.TabIndex(3)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+	V.Global.sQte.Declare
+	V.Global.iRow.Declare
+	V.Global.iRow.Set(-1)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Author: Daniel Duncan
+'Customer: MACCOR
+'Program Name: Mod to ARC 5405
+'Date Started: 11/25/19
+'Description: This project takes functionality already established in project 5405 and changes two things:  1. The script now fires from Script 2, and 2. Script 2 is renamed to "Rev".  The rest of the project (getting/settign notes, storing them in a custom table) is left as is.
+'Quote: 10852-0
+'GAP: 5775
+	F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+
+	V.Local.sIcon.Declare
+	V.Local.sCaption.Declare
+	
+	F.Intrinsic.Control.SelectCase(V.Caller.Hook)
+		F.Intrinsic.Control.Case(10710)
+			'Set Label on Script 2 Button
+			V.Passed.000202.Set("Rev")
+			
+		F.Intrinsic.Control.Case(10970)
+			'Call Notes from Script 2 Button
+			F.Intrinsic.Control.If(V.Passed.000003,=,"")
+				F.Intrinsic.UI.Msgbox("Select a Quote","Quote Missing")
+				F.Intrinsic.Control.End
+			F.Intrinsic.Control.EndIf
+			
+			F.Intrinsic.String.LPad(V.Passed.000003,"0",7,V.Global.sQte)
+			
+			F.Intrinsic.String.Build("Quote Notes ({0})",V.Global.sQte,V.Local.sCaption)
+			Gui.frmNotes..Caption(V.Local.sCaption)
+			
+			F.Intrinsic.String.Build("{0}\ART\gss2.ico",V.Caller.GlobalDir,V.Local.sIcon)
+			Gui.frmNotes..Icon(V.Local.sIcon)
+			
+			F.ODBC.Connection!con.OpenCompanyConnection(300) 
+			
+			F.Intrinsic.Control.CallSub(CheckTable)
+			F.Intrinsic.Control.CallSub(SetContextMenus)
+			F.Intrinsic.Control.CallSub(LoadNotesDT)
+			Gui.frmNotes..Show
+			Gui.frmNotes.txtRevRef.SetFocus
+	F.Intrinsic.Control.EndSelect
+	
+	F.Intrinsic.Control.Catch
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End 
+	F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.frmNotes_UnLoad.Start
+	F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+
+	F.ODBC.Connection!con.Close
+	F.Intrinsic.Control.End
+
+	F.Intrinsic.Control.Catch
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End 
+	F.Intrinsic.Control.EndTry
+Program.Sub.frmNotes_UnLoad.End
+
+Program.Sub.CheckTable.Start
+	F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+
+	V.Local.bExists.Declare
+	
+	'11/25/19 DD - Not changing the name of the table in case the user has already previously installed project 5405 and wishes to retain all notes entered in the past
+	F.ODBC.Connection!con.TableExists("GAB_5405_REV_NOTES",V.Local.bExists)
+	F.Intrinsic.Control.If(V.Local.bExists,=,False)
+		F.ODBC.Connection!con.Execute("CREATE TABLE GAB_5405_REV_NOTES(QNID IDENTITY,QUOTE_NO CHAR(7),DATE_ENTERED DATETIME,GS_USER CHAR(8),REV CHAR(50),NOTE LONGVARCHAR,DATE_LAST_UPDATED DATETIME,USER_LAST_UPDATED CHAR(8),PRIMARY KEY(QNID));")
+	F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.Control.Catch
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End 
+	F.Intrinsic.Control.EndTry
+Program.Sub.CheckTable.End
+
+Program.Sub.SetContextMenus.Start
+	F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+	
+	Gui.frmNotes..ContextMenuCreate("ctxNotes")
+	Gui.frmNotes.GsGCNotes.ContextMenuAttach("ctxNotes")
+	Gui.frmNotes..ContextMenuAddItem("ctxNotes","Delete",0,"Delete Note")
+	Gui.frmNotes..ContextMenuAddItem("ctxNotes","Export",0,"Export")
+	Gui.frmNotes..ContextMenuSetItemEventHandler("ctxNotes","Delete","MenuClick")
+	Gui.frmNotes..ContextMenuSetItemEventHandler("ctxNotes","Export","MenuClick")
+	
+	F.Intrinsic.Control.Catch
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End 
+	F.Intrinsic.Control.EndTry
+Program.Sub.SetContextMenus.End
+
+Program.Sub.MenuClick.Start
+	F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+
+	V.Local.sFileExport.Declare
+	V.Local.bExcel.Declare
+	V.Local.bFileLocked.Declare
+	V.Local.sMsg.Declare
+	V.Local.sControl.Declare
+	V.Local.iRow.Declare
+	
+	F.Intrinsic.Control.SelectCase(V.Args.ItemName)
+		F.Intrinsic.Control.Case("DELETE")
+			Gui.frmNotes.GsGCNotes.GetSelectedRows("gvNotes",V.Local.iRow)
+			F.Data.DataTable.DeleteRow("dtNotes",V.Local.iRow)
+			F.Data.DataTable.SaveToDB("dtNotes","con","GAB_5405_REV_NOTES","QNID")
+			F.Data.DataTable.AcceptChanges("dtNotes")
+			F.Intrinsic.Control.CallSub(cmdClear_Click)
+		
+		F.Intrinsic.Control.Case("EXPORT")
+			F.Automation.MSExcel.CheckPresence(V.Local.bExcel)
+			F.Intrinsic.Control.If(V.Local.bExcel)
+				F.Intrinsic.String.Build("{0}\GCG_5775_{1}_Export.xlsx",V.Caller.LocalGssTempDir,V.Local.sControl,V.Local.sFileExport)
+				F.Intrinsic.File.IsFileLocked(V.Local.sFileExport,V.Local.bFileLocked)
+				F.Intrinsic.Control.If(V.Local.bFileLocked)
+					F.Intrinsic.String.Build("File is already open. Please close and export again.{0}File: {1}",V.Ambient.NewLine,V.Local.sFileExport,V.Local.sMsg)
+					F.Intrinsic.UI.Msgbox(V.Local.sMsg,"File In Use")
+				F.Intrinsic.Control.Else
+					Gui.frmNotes.GsGCNotes.Export(V.Local.sFileExport,"xlsx")
+					F.Intrinsic.Task.ShellExec(0,"",V.Local.sFileExport,"","",1)
+				F.Intrinsic.Control.EndIf
+			F.Intrinsic.Control.Else
+				F.Intrinsic.String.Build("{0}\GCG_5775_{1}_Export.csv",V.Caller.LocalGssTempDir,V.Local.sControl,V.Local.sFileExport)
+				F.Intrinsic.File.IsFileLocked(V.Local.sFileExport,V.Local.bFileLocked)
+				F.Intrinsic.Control.If(V.Local.bFileLocked)
+					F.Intrinsic.String.Build("File is already open. Please close and export again.{0}File: {1}",V.Ambient.NewLine,V.Local.sFileExport,V.Local.sMsg)
+					F.Intrinsic.UI.Msgbox(V.Local.sMsg,"File In Use")
+				F.Intrinsic.Control.Else
+					Gui.frmNotes.GsGCNotes.Export(V.Local.sFileExport,"csv")
+				F.Intrinsic.Control.EndIf
+				F.Intrinsic.Task.ShellExec(0,"",V.Local.sFileExport,"","",1)
+			F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndSelect
+	
+	F.Intrinsic.Control.Catch
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End 
+	F.Intrinsic.Control.EndTry
+Program.Sub.MenuClick.End
+
+Program.Sub.LoadNotesDT.Start
+	F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+
+	V.Local.sSQL.Declare
+	
+	F.Intrinsic.Control.If(V.DataTable.dtNotes.Exists)
+		F.Data.DataTable.Close("dtNotes")
+	F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.String.Build("Select QNID,RTrim(QUOTE_NO) As QUOTE_NO,DATE_ENTERED,RTrim(GS_USER) As GS_USER,RTrim(REV) As REV,RTrim(NOTE) As NOTE,DATE_LAST_UPDATED,RTrim(USER_LAST_UPDATED) As USER_LAST_UPDATED From GAB_5405_REV_NOTES Where QUOTE_NO = '{0}' Order By DATE_ENTERED Desc;",V.Global.sQte,V.Local.sSQL)
+	F.Data.DataTable.CreateFromSQL("dtNotes","con",V.Local.sSQL,True)
+	
+	F.Intrinsic.Control.CallSub(LoadNotesGV)
+
+	F.Intrinsic.Control.Catch
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End 
+	F.Intrinsic.Control.EndTry
+Program.Sub.LoadNotesDT.End
+
+Program.Sub.LoadNotesGV.Start
+	F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+
+	Gui.frmNotes.GsGCNotes.AddGridViewFromDataTable("gvNotes","dtNotes")
+	Gui.frmNotes.GsGCNotes.SuspendLayout()
+	Gui.frmNotes.GsGCNotes.SetGridViewProperty("gvNotes","MultiSelect",True)
+	Gui.frmNotes.GsGCNotes.SetGridViewProperty("gvNotes","Editable",False)
+	Gui.frmNotes.GsGCNotes.SetGridViewProperty("gvNotes","AllowSort",True)
+	Gui.frmNotes.GsGCNotes.SetGridViewProperty("gvNotes","AllowFilter",True)
+	Gui.frmNotes.GsGCNotes.SetGridViewProperty("gvNotes","OptionsDetailShowDetailTabs",False)
+	Gui.frmNotes.GsGCNotes.SetGridViewProperty("gvNotes","OptionsViewShowGroupPanel",True)
+	Gui.frmNotes.GsGCNotes.SetGridViewProperty("gvNotes","OptionsFindAlwaysVisible",True)
+	
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QNID","Visible",False)
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QUOTE_NO","Visible",False)
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_LAST_UPDATED","Visible",False)
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","USER_LAST_UPDATED","Visible",False)
+	
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QNID","Caption","ID")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QUOTE_NO","Caption","Quote No")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_ENTERED","Caption","Date Entered")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","GS_USER","Caption","User")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","REV","Caption","Rev / Ref")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","NOTE","Caption","Note")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_LAST_UPDATED","Caption","Date Last Updated")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","USER_LAST_UPDATED","Caption","User Last Updated")
+
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QNID","MinWidth","45")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QUOTE_NO","MinWidth","65")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_ENTERED","MinWidth","110")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","GS_USER","MinWidth","65")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","REV","MinWidth","105")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","NOTE","MinWidth","150")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_LAST_UPDATED","MinWidth","110")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","USER_LAST_UPDATED","MinWidth","65")
+
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QNID","HeaderFontBold",True)
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QUOTE_NO","HeaderFontBold",True)
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_ENTERED","HeaderFontBold",True)
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","GS_USER","HeaderFontBold",True)
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","REV","HeaderFontBold",True)
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","NOTE","HeaderFontBold",True)
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_LAST_UPDATED","HeaderFontBold",True)
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","USER_LAST_UPDATED","HeaderFontBold",True)
+	
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QNID","HeaderHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QUOTE_NO","HeaderHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_ENTERED","HeaderHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","GS_USER","HeaderHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","REV","HeaderHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","NOTE","HeaderHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_LAST_UPDATED","HeaderHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","USER_LAST_UPDATED","HeaderHAlignment","Center")
+
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QNID","CellHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","QUOTE_NO","CellHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_ENTERED","CellHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","GS_USER","CellHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_LAST_UPDATED","CellHAlignment","Center")
+	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","USER_LAST_UPDATED","CellHAlignment","Center")
+	
+'	Gui.frmNotes.GsGCNotes.SetColumnProperty("gvNotes","DATE_ITEM_PROM","DisplayCustomDatetime","d")
+	
+	Gui.frmNotes.GsGCNotes.ResumeLayout()
+	Gui.frmNotes.GsGCNotes.MainView("gvNotes")
+
+	F.Intrinsic.Control.Catch
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End 
+	F.Intrinsic.Control.EndTry
+Program.Sub.LoadNotesGV.End
+
+Program.Sub.GsGCNotes_RowCellClick.Start
+	F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+
+	V.Global.iRow.Set(V.Args.RowIndex)
+	Gui.frmNotes.txtRevRef.Text(V.DataTable.dtNotes(V.Global.iRow).Rev!FieldVal)
+	Gui.frmNotes.txtNotes.Text(V.DataTable.dtNotes(V.Global.iRow).Note!FieldVal)
+
+	F.Intrinsic.Control.Catch
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End 
+	F.Intrinsic.Control.EndTry
+Program.Sub.GsGCNotes_RowCellClick.End
+
+Program.Sub.cmdClear_Click.Start
+	F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+
+	Gui.frmNotes.txtRevRef.Text("")
+	Gui.frmNotes.txtNotes.Text("")
+	V.Global.iRow.Set(-1)
+
+	F.Intrinsic.Control.Catch
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End 
+	F.Intrinsic.Control.EndTry
+Program.Sub.cmdClear_Click.End
+
+Program.Sub.cmdSaveNote_Click.Start
+	F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+	
+	F.Intrinsic.Control.If(V.Screen.frmNotes!txtRevRef.Text,<>,"",AND,V.Screen.frmNotes!txtNotes.Text,<>,"")
+		F.Intrinsic.Control.If(V.Global.iRow,=,-1)
+			F.Data.DataTable.AddRow("dtNotes","QNID",0,"QUOTE_NO",V.Global.sQte,"DATE_ENTERED",V.Ambient.Now,"GS_USER",V.Caller.User,"REV",V.Screen.frmNotes!txtRevRef.Text,"NOTE",V.Screen.frmNotes!txtNotes.Text,"DATE_LAST_UPDATED",V.Ambient.Now,"USER_LAST_UPDATED",V.Caller.User)
+		F.Intrinsic.Control.Else
+			F.Data.DataTable.SetValue("dtNotes",V.Global.iRow,"REV",V.Screen.frmNotes!txtRevRef.Text,"NOTE",V.Screen.frmNotes!txtNotes.Text,"DATE_LAST_UPDATED",V.Ambient.Now,"USER_LAST_UPDATED",V.Caller.User)
+		F.Intrinsic.Control.EndIf
+		
+		F.Data.DataTable.SaveToDB("dtNotes","con","GAB_5405_REV_NOTES","QNID")
+		F.Intrinsic.Control.CallSub(LoadNotesDT)
+		F.Intrinsic.Control.CallSub(cmdClear_Click)
+		Gui.frmNotes.txtRevRef.SetFocus
+	F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.Control.Catch
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End 
+	F.Intrinsic.Control.EndTry
+Program.Sub.cmdSaveNote_Click.End
